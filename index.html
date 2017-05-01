@@ -1,0 +1,155 @@
+<html>
+	<head>
+		<title>A chat application with Node Js</title>
+		<style>
+			body,
+			textarea,
+			input {
+				font: 14px, sans-serif;
+			}
+
+			.chat{
+				max-width:300px;
+			}
+
+			.chat-messages,
+			.chat textarea,
+			.chat-name{
+				border: 1px solid #bbb;
+				width:100%;
+			}
+
+			.chat-messages{
+				height: 300px;
+				overflow-y: scroll;
+			}
+			
+			.chat-name{
+				width:100%;
+				padding:10px;
+				border-bottom:0;
+				margin:0;
+				outline:none;
+			}
+			
+			.chat textarea{
+				padding:10px;
+				margin:0;
+				border-top:0;
+				max-width:100%;
+				outline:none;
+			}
+			
+			.chat-message{
+				padding:10px;
+			}
+			.chat{
+				display:none;
+			}
+			.userlist{
+				position:absolute;
+				top: 10;
+				left:350;
+				padding:10px;
+				color: #696969;
+				display: none;
+			}
+			.user-active{
+				font-weight: bold;
+			}
+		</style>
+		
+	</head>
+	
+	<body>
+		<div id='username'>
+			<input type='text' id='inp-username' />
+			<input type="submit" id="join" value= "Join Chat" />
+		</div>
+		
+		<div class='chat'>
+			<input type="text" class='chat-name' readonly />
+			<div class='chat-messages' id='chat-messages'></div>
+			<textarea class="chat-textarea" placeholder='Type your message here'></textarea>
+		</div>
+		<div class='userlist'>
+			<span class="user-active"></span>
+		</div>
+			
+		<script src="http://127.0.0.1:8080/socket.io/socket.io.js" ></script>
+		<script>
+			(function(){
+				try{
+					var socket = io.connect('http://127.0.0.1:8080');
+				}catch(e){
+				}
+				if(socket!= undefined){
+					var me = '';
+					document.querySelector('#join').addEventListener('click' , function(event){
+						var user = document.querySelector('#inp-username').value;
+						socket.emit('new user' , user , function(data){
+							if(data){
+								document.querySelector('#username').style.display = 'none';
+								document.querySelector('.chat').style.display = 'block';
+								document.querySelector('.userlist').style.display = 'block';
+								me = user;
+							}
+						});
+					});
+					
+					document.querySelector('.chat textarea').addEventListener('keydown', function(event){
+						var self = this,
+							to = document.querySelector('.chat-name').value;
+							
+						
+						if(event.which === 13 && event.shiftKey === false){
+							var html = document.getElementById('chat-messages').innerHTML;	
+							
+							document.getElementById('chat-messages').innerHTML = '<span class="chat-message"><b>' + me + ': </b>' + document.querySelector('.chat textarea').value + '</span> <br/>' + html;
+							
+							socket.emit('send message' , {
+								"to" : to,
+								"message" : self.value
+							});
+							self.value = '';
+						}
+							
+					});
+					
+					document.addEventListener('click' , function(data){
+						if(data.target && data.target.className == "user-active" ){
+							document.querySelector('.chat-name').value = data.target.innerHTML;
+							document.getElementById(data.target.innerHTML).style.color = '#696969';
+							socket.emit('retrieve message' , data.target.innerHTML);
+						}
+						
+					});
+					
+					socket.on('usernames' , function(data){
+						if(data){
+							var html='Active users: <br/>';
+							for(var i=0; i<data.length; ++i)
+								html += '<span class="user-active" id='+ data[i] + '>' + data[i] + '</span> <br/>';
+							document.querySelector('.userlist').innerHTML = html;
+						}
+					});
+					
+					socket.on('display messages' , function(data){
+						if(data){
+							var html='';
+							for(var i=data.length-1; i>=0; --i)
+								html += '<span class="chat-message"><b>' + data[i].name + ': </b>' + data[i].message + '</span> <br/>';
+							document.querySelector('.chat-messages').innerHTML = html;
+						}
+					});
+					
+					socket.on('new message' , function(data){					
+						document.getElementById(data).style.color = 'red';
+					});
+				}
+			
+			})();
+		
+		</script>
+	</body>
+</html>
